@@ -76,7 +76,7 @@ struct {
     char* sysDescr;
 /*  char* communities[];*/
 } host[MAX_HOSTS];
-
+int max_hosts_warning = 0;
 
 void usage()
 {
@@ -126,6 +126,58 @@ void read_communities(char* filename)
     fclose(fd);
 }
 
+int add_host(const char *hoststring)
+{
+    char *slashpos;
+    if ((slashpos = strchr(hoststring, '/')) != NULL) {
+        int networkaddr, networkbits;
+        /* here we have CIDR notation: 192.168.0.0/24 */
+        *slashpos = '\0'; /* temporarily terminate the string */
+        if ((networkaddr = inet_addr(hoststring)) == INADDR_NONE) {
+            printf("Malformed IP address: %s\n", hoststring);
+            return 0;
+        }
+
+        networkbits = strtol(slashpos + 1, NULL, 10);
+        /* Make shortest length 16 because we can only handle 64K hosts in total */
+        if ((networkbits < 16) || (networkbits > 30)) {
+            printf("Network length must be between 16 and 30, not %s\n", slashpos + 1);
+            return 0;
+        }
+
+        /* For this bit, work with IP addresses where network is in most significant bits,
+         * and host is in least significant. */
+        int hostmask = (1 << (32 - networkbits)) - 1;
+        int netmask = ~hostmask;
+        networkaddr = ntohl(networkaddr) & netmask;
+        printf("netmask = %08x, hostmask = %08x\n", netmask, hostmask);
+        int hostbit;
+        for (hostbit = 1; hostbit < hostmask; ++hostbit) {
+            int addr = networkaddr | hostbit;
+            printf("%d.%d.%d.%d\n", (addr >> 24) & 0xff, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff);
+            if (host_count < MAX_HOSTS)
+                host[host_count++].addr = htonl(addr);
+            else if (!max_hosts_warning) {
+                fprintf(stderr, "Warning: more than %d hosts; ignoring the rest\n", MAX_HOSTS);
+                max_hosts_warning = 1;
+            }
+        }
+    } else {
+        /* previous behaviour */
+        if (host_count < MAX_HOSTS) {
+            if ((host[host_count++].addr = inet_addr(hoststring)) == INADDR_NONE) {
+                printf("Malformed IP address: %s\n", hoststring);
+                return 0;
+            }
+        } else if (!max_hosts_warning) {
+            fprintf(stderr, "Warning: more than %d hosts; ignoring the rest\n", MAX_HOSTS);
+            max_hosts_warning = 1;
+        }
+    }
+    if (o.debug > 0) printf("Target ip(s) read: %s\n", hoststring);
+    return 1;
+}
+
 void read_hosts(char* filename)
 {
     FILE* fd;
@@ -152,10 +204,8 @@ void read_hosts(char* filename)
         if (ch == '\n' || ch == ' ' || ch == '\t') {
             buf[c] = '\0';
             if (c > 0) {            /* skip blank lines */
-                if ((host[host_count++].addr = inet_addr((const char*)&buf)) == INADDR_NONE) {
-                    printf("Malformed IP address: %s\n", buf);
+                if (!add_host(buf))
                     exit(1);
-                }
                 c = 0;
             }
         } else {
@@ -224,12 +274,8 @@ void init_options(int argc, char *argv[])
             exit(1);
         }
 
-        if ((host[0].addr = inet_addr((const char*)argv[optind++])) == INADDR_NONE) {
-            printf("Malformed IP address: %s\n", argv[optind-1]);
+        if (!add_host(argv[optind++]))
             exit(1);
-        }
-        host_count = 1;
-        if (o.debug > 0) printf("Target ip read from command line: %s\n", argv[optind-1]);
     }
     else {
         read_hosts((char*)&input_filename);
@@ -732,7 +778,7 @@ inline int timeval_subtract (struct timeval *result, struct timeval *x, struct t
 void receive_snmp(int sock, long wait, struct sockaddr_in* remote_addr)
 {
     struct timeval tv_now, tv_until, tv_wait;
-    int remote_addr_len;
+    socklen_t remote_addr_len;
     char buf[1500];
     int ret;
     fd_set fds;
