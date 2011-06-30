@@ -1,4 +1,4 @@
-/*  onesixtyone version 0.3.2
+/*  onesixtyone
     Copyright (C) 2002,2003  solareclipse@phreedom.org
 
     This program is free software; you can redistribute it and/or modify
@@ -34,7 +34,7 @@
 
 #define MAX_COMMUNITIES 1024
 #define MAX_HOSTS 65535
-#define MAX_COMMUNITY_SIZE 16
+#define MAX_COMMUNITY_SIZE 33
 
 char* snmp_errors[] = {
     "NO ERROR",             /* 0 */
@@ -80,7 +80,7 @@ int max_hosts_warning = 0;
 
 void usage()
 {
-    printf("onesixtyone 0.3.2 [options] <host> <community>\n");
+    printf("onesixtyone [options] <host> <community>\n");
     printf("  -c <communityfile> file with community names to try\n");
     printf("  -i <inputfile>     file with target hosts\n");
     printf("  -o <outputfile>    output log\n");
@@ -95,7 +95,7 @@ void read_communities(char* filename)
 {
     FILE* fd;
     int i, c;
-    char ch;
+    int ch;
 
     if (o.debug > 0) printf("Using community file %s\n", filename);
 
@@ -107,18 +107,15 @@ void read_communities(char* filename)
     i = 0; c = 0;
     community[i] = (char*)malloc(MAX_COMMUNITY_SIZE);
     while ((ch = fgetc(fd)) != EOF) {
-        if (ch == '\n' || ch == ' ' || ch == '\t') {
+        if (ch == '\n') {
             community[i][c] = '\0';
+            printf("Got '%s'\n", community[i]);
             if (c > 0) {
                 i++; c = 0;
-                community[i] = (char*)malloc(16);
+                community[i] = (char*)malloc(MAX_COMMUNITY_SIZE);
             }
-        } else {
+        } else if (c < MAX_COMMUNITY_SIZE - 1) {
             community[i][c++] = ch;
-        }
-        if (c > MAX_COMMUNITY_SIZE-1) {
-            printf("Community string too long\n");
-            exit(1);
         }
     }
 
@@ -884,3 +881,5 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+
+/* vim: set ts=4 et : */
