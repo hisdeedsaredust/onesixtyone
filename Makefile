@@ -1,5 +1,4 @@
-onesixtyone: onesixtyone.c
-	gcc -o onesixtyone onesixtyone.c
+onesixtyone:
 
 solaris: onesixtyone.c
 	cc -o onesixtyone onesixtyone.c -lsocket -lnsl
