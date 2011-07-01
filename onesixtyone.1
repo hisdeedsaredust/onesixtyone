@@ -1,4 +1,4 @@
-.TH ONESIXTYONE "1" "2010-10-18" "onesixtyone 0.3.2" "User Commands"
+.TH ONESIXTYONE "1" "2010-10-18"
 .SH NAME
 onesixtyone \- an efficient SNMP scanner
 .SH SYNOPSIS
@@ -8,7 +8,7 @@ onesixtyone \- an efficient SNMP scanner
 .\" Add any additional description here
 .B onesixtyone
 is a network scanner that sends an
-.SM SNMP
+.SM SNMP GET
 request for the
 .\" sysDescr.0 = 1.3.6.1.2.1.1.1.0
 system.sysDescr.0 value, present on almost all
@@ -16,6 +16,8 @@ system.sysDescr.0 value, present on almost all
 enabled devices,
 and logs the returned value, which should be a description of the
 system software running on the device.
+.SM SNMP
+protocol version 1 is used.
 .PP
 Requests are sent to hosts as fast as possible, rather than waiting
 for each one to respond individually, and responses are displayed as
@@ -27,7 +29,11 @@ After all packets have been sent,
 .B onesixtyone
 will wait for five seconds for outstanding responses.
 .PP
-Hosts can be specified as IP addresses or using CIDR notation to target
+Hosts can be specified as
+.SM IP
+addresses or using
+.SM CIDR
+notation to target
 all hosts on a particular subnet; no name lookup is done. For example,
 127.0.0.1 will scan one host, and 192.168.0.0/24 will scan all hosts
 from 192.168.0.1 to 192.168.0.254.
@@ -53,11 +59,8 @@ The default delay is 10 milliseconds. If 0 is requested, packets will be
 sent as fast as possible.
 .IP -q
 Quiet mode. Do not print log to stdout, use with -o.
-.SH EXAMPLES
-...waiting...
-.\" this section for Fedora only
 .SH FILES
-.I /usr/share/onesixtyone/dict.txt
+.I dict.txt
 .RS
 A list of sample community names.
 .RE
