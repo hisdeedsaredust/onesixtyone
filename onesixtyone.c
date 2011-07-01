@@ -100,7 +100,7 @@ void read_communities(char* filename)
     if (o.debug > 0) printf("Using community file %s\n", filename);
 
     if ((fd = fopen(filename, "r")) == 0) {
-        printf("Error opening community file %s\n", filename);
+        fprintf(stderr, "Error opening community file %s\n", filename);
         exit(1);
     }
 
@@ -131,14 +131,14 @@ int add_host(const char *hoststring)
         /* here we have CIDR notation: 192.168.0.0/24 */
         *slashpos = '\0'; /* temporarily terminate the string */
         if ((networkaddr = inet_addr(hoststring)) == INADDR_NONE) {
-            printf("Malformed IP address: %s\n", hoststring);
+            fprintf(stderr, "Malformed IP address: %s\n", hoststring);
             return 0;
         }
 
         networkbits = strtol(slashpos + 1, NULL, 10);
         /* Make shortest length 16 because we can only handle 64K hosts in total */
         if ((networkbits < 16) || (networkbits > 30)) {
-            printf("Network length must be between 16 and 30, not %s\n", slashpos + 1);
+            fprintf(stderr, "Network length must be between 16 and 30, not %s\n", slashpos + 1);
             return 0;
         }
 
@@ -147,11 +147,9 @@ int add_host(const char *hoststring)
         int hostmask = (1 << (32 - networkbits)) - 1;
         int netmask = ~hostmask;
         networkaddr = ntohl(networkaddr) & netmask;
-        printf("netmask = %08x, hostmask = %08x\n", netmask, hostmask);
         int hostbit;
         for (hostbit = 1; hostbit < hostmask; ++hostbit) {
             int addr = networkaddr | hostbit;
-            printf("%d.%d.%d.%d\n", (addr >> 24) & 0xff, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff);
             if (host_count < MAX_HOSTS)
                 host[host_count++].addr = htonl(addr);
             else if (!max_hosts_warning) {
@@ -163,7 +161,7 @@ int add_host(const char *hoststring)
         /* previous behaviour */
         if (host_count < MAX_HOSTS) {
             if ((host[host_count++].addr = inet_addr(hoststring)) == INADDR_NONE) {
-                printf("Malformed IP address: %s\n", hoststring);
+                fprintf(stderr, "Malformed IP address: %s\n", hoststring);
                 return 0;
             }
         } else if (!max_hosts_warning) {
@@ -189,7 +187,7 @@ void read_hosts(char* filename)
     else {
         if (o.debug > 0) printf("Reading hosts from input file %s\n", filename);
         if ((fd = fopen(filename, "r")) == 0) {
-            printf("Error opening input file %s\n", filename);
+            fprintf(stderr, "Error opening input file %s\n", filename);
             exit(1);
         }
     }
@@ -209,7 +207,7 @@ void read_hosts(char* filename)
             buf[c++] = ch;
         }
         if (c > sizeof(buf)-1) {
-            printf("IP address too long\n");
+            fprintf(stderr, "IP address too long\n");
             exit(1);
         }
     }
