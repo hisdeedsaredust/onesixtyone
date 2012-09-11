@@ -72,7 +72,7 @@ char* community[MAX_COMMUNITIES] = { "public", "private" };
 
 int host_count = 0;
 struct {
-    int addr;
+    in_addr_t addr;
     char* sysDescr;
 /*  char* communities[];*/
 } host[MAX_HOSTS];
@@ -127,7 +127,8 @@ int add_host(const char *hoststring)
 {
     char *slashpos;
     if ((slashpos = strchr(hoststring, '/')) != NULL) {
-        int networkaddr, networkbits;
+        in_addr_t networkaddr;
+        int networkbits;
         /* here we have CIDR notation: 192.168.0.0/24 */
         *slashpos = '\0'; /* temporarily terminate the string */
         if ((networkaddr = inet_addr(hoststring)) == INADDR_NONE) {
@@ -178,7 +179,7 @@ void read_hosts(char* filename)
     FILE* fd;
     char buf[100];
     char ch;
-    int c;
+    size_t c;
 
     if (strcmp(filename, "-") == 0) {
         if (o.debug > 0) printf("Reading hosts from stdin\n");
@@ -315,7 +316,7 @@ void init_options(int argc, char *argv[])
     if (o.debug > 0) printf("Waiting for %ld milliseconds between packets\n", o.wait);
 }
 
-int build_snmp_req(char* buf, int buf_size, char* community)
+int build_snmp_req(char* buf, size_t buf_size, char* community)
 {
     int i;
     static int id;

@@ -1,3 +1,5 @@
+CFLAGS = -Wall -Wextra -Werror
+
 onesixtyone:
 
 solaris: onesixtyone.c
