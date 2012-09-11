@@ -36,6 +36,7 @@
 #define MAX_HOSTS 65535
 #define MAX_COMMUNITY_SIZE 33
 
+/* SNMPv2 Errors from RFC 1905 -- SNMP v1 errors are only those up to GENERIC ERROR (5) */
 char* snmp_errors[] = {
     "NO ERROR",             /* 0 */
     "TOO BIG",              /* 1 */
@@ -87,8 +88,8 @@ void usage()
     printf("  -d                 debug mode, use twice for more information\n\n");
     printf("  -w n               wait n milliseconds (1/1000 of a second) between sending packets (default 10)\n");
     printf("  -q                 quiet mode, do not print log to stdout, use with -l\n");
-    printf("examples: ./s -c dict.txt 192.168.4.1 public\n");
-    printf("          ./s -c dict.txt -i hosts -o my.log -w 100\n\n");
+    printf("examples: onesixtyone -c dict.txt 192.168.4.1 public\n");
+    printf("          onesixtyone -c dict.txt -i hosts -o my.log -w 100\n\n");
 }
 
 void read_communities(char* filename)
@@ -286,7 +287,9 @@ void init_options(int argc, char *argv[])
             usage();
             exit(1);
         }
-        community[0] = argv[optind++];
+        community[0] = (char*)malloc(MAX_COMMUNITY_SIZE);
+        strncpy(community[0], argv[optind++], MAX_COMMUNITY_SIZE);
+        community[0][MAX_COMMUNITY_SIZE] = 0;
         community_count = 1;
         if (o.debug > 0) printf("Community read from command line: %s\n", community[0]);;
     }
@@ -319,7 +322,7 @@ void init_options(int argc, char *argv[])
 int build_snmp_req(char* buf, size_t buf_size, char* community)
 {
     int i;
-    static int id;
+    static int id = 0x123456;
     char object[] = "\x30\x0e\x30\x0c\x06\x08\x2b\x06\x01\x02\x01\x01\x01\x0\x05\x00";
 
     if (21 + strlen(community) + strlen(object) > buf_size) {
@@ -327,30 +330,33 @@ int build_snmp_req(char* buf, size_t buf_size, char* community)
         exit(1);
     }
 
-    if (--id > 0x7ffe) id = 0;
+    // Request is only built once per community, so no real benefit in changing id
+    --id;
 
     memset(buf, 0, buf_size);
 
-    buf[0] = 0x30;
-    buf[1] = 19 + strlen(community) + sizeof(object)-1;
+    i =  0;
+    buf[i++] = 0x30;
+    buf[i++] = 19 + strlen(community) + sizeof(object)-1;
 
     // Version: 1
-    buf[2] = 0x02;
-    buf[3] = 0x01;
-    buf[4] = 0x00;
+    buf[i++] = 0x02;
+    buf[i++] = 0x01;
+    buf[i++] = 0x00;
 
     // Community
-    buf[5] = 0x04;
-    buf[6] = strlen(community);
+    buf[i++] = 0x04;
+    buf[i++] = strlen(community);
 
-    strcpy((buf + 7), community);
-    i = 7 + strlen(community);
+    strcpy((buf + i), community);
+    i += strlen(community);
 
     // PDU type: GET
     buf[i++] = 0xa0;
     buf[i++] = 12 + sizeof(object)-1;
 
-    // Request ID
+    // Request ID - strictly speaking, this should be encoded with the
+    // minimum number of octets, but I haven't found an agent that cares
     buf[i++] = 0x02;
     buf[i++] = 0x04;
     buf[i++] = (char)((id >> 24) & 0xff);
@@ -486,6 +492,15 @@ int parse_asn_integer(u_char* buf, int buf_size, int* i)
         ret =   ((int)buf[(*i)+1] << 8) +
                 (int)buf[(*i)+2];
         *i += 3;
+    } else if (buf[*i] == 0x03) {
+        if ((*i)+3 > buf_size) {
+            logfile("Unable to decode SNMP packet: buffer overflow\n");
+            return -1;
+        }
+        ret =   ((int)buf[(*i)+1] << 16) +
+                ((int)buf[(*i)+2] << 8) +
+                (int)buf[(*i)+3];
+        *i += 4;
     } else if (buf[*i] == 0x04) {
         if ((*i)+5 > buf_size) {
             logfile("Unable to decode SNMP packet: buffer overflow\n");
@@ -516,7 +531,7 @@ int print_asn_string(u_char* buf, int buf_size, int* i)
         string_end = *i + ret;
 
     for (;*i < string_end; *i += 1) {
-        if (buf[*i] < 0x20 || buf[*i] > 0x80)
+        if (buf[*i] < 0x20 || buf[*i] >= 0x80)
             logfile(" ");
         else
             logfile("%c", buf[*i]);
