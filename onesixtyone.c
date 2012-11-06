@@ -64,6 +64,7 @@ struct {
     int log;
     int quiet;
     long wait;
+    int version;
 
     FILE* log_fd;
 } o;
@@ -88,6 +89,7 @@ void usage()
     printf("  -d                 debug mode, use twice for more information\n\n");
     printf("  -w n               wait n milliseconds (1/1000 of a second) between sending packets (default 10)\n");
     printf("  -q                 quiet mode, do not print log to stdout, use with -l\n");
+    printf("  -v 1 | 2c          protocol version to use (default is 1)\n");
     printf("examples: onesixtyone -c dict.txt 192.168.4.1 public\n");
     printf("          onesixtyone -c dict.txt -i hosts -o my.log -w 100\n\n");
 }
@@ -232,12 +234,13 @@ void init_options(int argc, char *argv[])
     o.log = 0;
     o.quiet = 0;
     o.wait = 10;
+    o.version = 1;
     input_file = 0;
     community_file = 0;
 
     o.log_fd = NULL;
 
-    while ((arg = getopt(argc, argv, "c:di:o:w:q")) != EOF) {
+    while ((arg = getopt(argc, argv, "c:di:o:w:qv:")) != EOF) {
         switch (arg) {
             case 'c' :  community_file = 1;
                         strncpy(community_filename, optarg, sizeof(community_filename));
@@ -253,6 +256,13 @@ void init_options(int argc, char *argv[])
             case 'w' :  o.wait = atol(optarg);  /* convert to nanoseconds */
                         break;
             case 'q' :  o.quiet = 1;
+                        break;
+            case 'v' :  if (strcmp(optarg, "1") == 0)
+                            o.version = 1;
+                        else if (strcmp(optarg, "2c") == 0)
+                            o.version = 2;
+                        else
+                            fputs("Protocol version must be 1 or 2c. Using version 1\n", stderr);
                         break;
             case '?' :  usage();
                         exit(1);
@@ -341,7 +351,7 @@ int build_snmp_req(char* buf, size_t buf_size, char* community)
     // Version: 1
     buf[i++] = 0x02;
     buf[i++] = 0x01;
-    buf[i++] = 0x00;
+    buf[i++] = o.version - 1; /* version 1 (0), version 2c (1) */
 
     // Community
     buf[i++] = 0x04;
@@ -573,7 +583,7 @@ int parse_snmp_version(u_char* buf, int buf_size, int* i)
 
     if ((ret = parse_asn_integer(buf, buf_size, i)) == -1)
         return -1;
-    else if (ret != 0) {
+    else if ((ret != 0) && (ret != 1)) { // allow v1 (0) or v2c (1)
         logfile("Unable to decode SNMP packet: snmp version invalid\n");
         return -1;
     }

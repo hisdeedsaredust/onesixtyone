@@ -59,10 +59,15 @@ The default delay is 10 milliseconds. If 0 is requested, packets will be
 sent as fast as possible.
 .IP -q
 Quiet mode. Do not print log to stdout, use with -o.
+.IP "-v [1 | 2c]"
+Use protocol version 1 or 2c.
+Some hosts may only respond to one of the protocol versions, or may
+return errors when the other version is used. The default version is 1.
 .SH FILES
 .I dict.txt
 .RS
 A list of sample community names.
 .RE
 .SH AUTHOR
-Written by Solar Eclipse, solareclipse at phreedom dot org.
+Originally written by Solar Eclipse, solareclipse at phreedom dot org.
+Now maintained by Paul Flo Williams, paul at frixxon dot co dot uk.
