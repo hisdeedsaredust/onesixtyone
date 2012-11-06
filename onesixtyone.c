@@ -110,7 +110,6 @@ void read_communities(char* filename)
     while ((ch = fgetc(fd)) != EOF) {
         if (ch == '\n') {
             community[i][c] = '\0';
-            printf("Got '%s'\n", community[i]);
             if (c > 0) {
                 i++; c = 0;
                 community[i] = (char*)malloc(MAX_COMMUNITY_SIZE);
@@ -301,7 +300,7 @@ void init_options(int argc, char *argv[])
 
     if (o.log) {
         if ((o.log_fd = fopen(log_filename, "w")) == 0) {
-            printf("Error opening log file %s\n", log_filename);
+            fprintf(stderr, "Error opening log file %s\n", log_filename);
             exit(1);
         }
         printf("Logging to file %s\n", log_filename);
@@ -811,15 +810,15 @@ void receive_snmp(int sock, long wait, struct sockaddr_in* remote_addr)
         FD_SET(sock, &fds);
 
         if ((ret = select(sock+1, &fds, NULL, NULL, &tv_wait)) == -1) {
-            printf("Error in pselect\n");
+            perror("Error in select");
             exit(1);
         } else if (ret > 0) {
             memset(&buf, 0x0, sizeof(buf));
             remote_addr_len = sizeof(*remote_addr);
 
             ret = recvfrom(sock, &buf, sizeof(buf), 0, (struct sockaddr*)remote_addr, &remote_addr_len);
-                if (ret < 0) {
-                printf("Error in recvfrom\n");
+            if (ret < 0) {
+                perror("Error in recvfrom");
             }
             logfile("%s ", inet_ntoa(remote_addr->sin_addr));
             parse_snmp_response((u_char*)&buf, ret);
@@ -876,7 +875,7 @@ int main(int argc, char* argv[])
 
             ret = sendto(sock, &sendbuf, sendbuf_size, 0, (struct sockaddr*)&remote_addr, sizeof(remote_addr));
             if (ret < 0) {
-                printf("Error in sendto: %s\n", strerror(errno));
+                perror("Error in sendto");
                 /* exit(1); */
             }
 
